@@ -1,0 +1,83 @@
+/* Background */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: grey;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: center;
+}
+
+canvas {
+  margin-top: 15px;
+  max-height: 300px;
+}
+
+/* Headings */
+h2 {
+  color: #6a4c93;
+}
+
+/* Inputs */
+input {
+  width: 90%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+/* Buttons */
+button {
+  background: linear-gradient(45deg, #ff9a9e, #a18cd1);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* Links */
+a {
+  color: #6a4c93;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* ✅ Results Box */
+.results-box {
+  margin-top: 20px;
+  text-align: left;
+  background: #f9f9ff;
+  padding: 15px;
+  border-radius: 15px;
+}
+
+.results-box h3 {
+  color: #6a4c93;
+}
+
+.results-box ul {
+  padding-left: 20px;
+}
+
+.results-box li {
+  margin-bottom: 5px;
+}

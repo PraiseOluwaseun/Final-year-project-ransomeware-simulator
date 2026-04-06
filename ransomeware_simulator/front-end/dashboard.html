@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ransomware Simulator Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <h2>Ransomware Simulator Dashboard</h2>
+    
+    <div id="sessionInfo" style="font-size: 0.9em; margin-bottom: 10px; color: #666; text-align: center;">
+        <span id="userEmail">Loading...</span> | 
+        <strong>Session Time:</strong> <span id="timer">00:00</span>
+    </div>
+
+    <div class="controls" style="text-align: center; margin-bottom: 20px;">
+        <button type="button" id="runSim">Run Simulation</button>
+        <button type="button" id="download" style="display:none;">Download Report</button>
+        <button type="button" id="logoutBtn">Logout</button>
+    </div>
+
+    <div id="results" class="results-box" style="display:none;">
+        <h3 style="text-align:center;">Detection Result: <span id="prediction"></span></h3>
+        
+        <div style="height: 250px; position: relative; margin-bottom: 20px;">
+            <canvas id="chart"></canvas>
+        </div>
+
+        <hr>
+        <div class="details">
+            <h4>Activity Logs</h4>
+            <ul id="logs"></ul>
+
+            <h4>Feature Values</h4>
+            <ul id="features"></ul>
+
+            <h4>LIME Explanation</h4>
+            <ul id="lime"></ul>
+
+            <h4>SHAP Explanation</h4>
+            <ul id="shap"></ul>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { auth } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const API_BASE = "http://127.0.0.1:8000";
+    let chartInstance = null;
+
+    // --- 1. Persistent Timer Logic ---
+    // We store the start time in sessionStorage so it survives refreshes
+    if (!sessionStorage.getItem("sessionStartTime")) {
+        sessionStorage.setItem("sessionStartTime", Date.now());
+    }
+
+    function updateTimer() {
+        const start = parseInt(sessionStorage.getItem("sessionStartTime"));
+        const diff = Math.floor((Date.now() - start) / 1000);
+        const mins = String(Math.floor(diff / 60)).padStart(2, '0');
+        const secs = String(diff % 60).padStart(2, '0');
+        document.getElementById("timer").innerText = `${mins}:${secs}`;
+    }
+    setInterval(updateTimer, 1000);
+
+    // --- 2. Auth State ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            document.getElementById("userEmail").innerText = user.email;
+            // Check if we have previous results in this session
+            const savedData = sessionStorage.getItem("lastResult");
+            if (savedData) {
+                renderUI(JSON.parse(savedData));
+            }
+        } else {
+            sessionStorage.clear();
+            window.location.href = "login.html";
+        }
+    });
+
+    document.getElementById("logoutBtn").onclick = async () => {
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = "login.html";
+    };
+
+    // --- 3. Simulation Logic ---
+    document.getElementById("runSim").addEventListener("click", async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById("runSim");
+        btn.innerText = "Processing ML...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_BASE}/simulate`, { method: "POST" });
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+
+            // Save result to session so it stays if page refreshes
+            sessionStorage.setItem("lastResult", JSON.stringify(data));
+            renderUI(data);
+        } catch (error) {
+            alert("Error: " + error.message);
+        } finally {
+            btn.innerText = "Run Simulation";
+            btn.disabled = false;
+        }
+    });
+
+    function renderUI(data) {
+        document.getElementById("results").style.display = "block";
+        document.getElementById("download").style.display = "inline-block";
+
+        const predEl = document.getElementById("prediction");
+        predEl.innerText = data.prediction;
+        predEl.style.color = (data.prediction === "Ransomware") ? "#d63031" : "#27ae60";
+
+        const fill = (id, items) => {
+            const list = document.getElementById(id);
+            list.innerHTML = "";
+            if (Array.isArray(items)) {
+                items.forEach(item => {
+                    const li = document.createElement("li");
+                    li.innerText = Array.isArray(item) ? item.join(": ") : item;
+                    list.appendChild(li);
+                });
+            }
+        };
+
+        fill("logs", data.logs);
+        fill("features", data.features);
+        fill("lime", data.lime);
+        fill("shap", data.shap);
+
+        updateChart(data.features);
+    }
+
+    // --- 4. Stable Download ---
+    document.getElementById("download").onclick = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`${API_BASE}/download-report`);
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Ransomware_Report.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (err) {
+            alert("Download failed.");
+        }
+    };
+
+    function updateChart(features) {
+        const ctx = document.getElementById("chart").getContext("2d");
+        if (chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: ["CPU", "Mem", "Disk", "Proc", "Net", "Susp"],
+                datasets: [{
+                    label: "System Metrics",
+                    data: features,
+                    backgroundColor: "#a18cd1"
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, max: 100 } }
+            }
+        });
+    }
+</script>
+</body>
+</html>
